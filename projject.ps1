@@ -1,16 +1,27 @@
+# ============================================================================
+# Скрипт-анализатор угроз и уязвимостей ОС Windows (Интерактивный CLI)
+# Автор: Сарим | КарТУ им. А.Сагинова
+# ============================================================================
+
+# 1. Железобетонный перезапуск с правами Администратора
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $url = "https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1"
     $cmd = "-NoProfile -ExecutionPolicy Bypass -NoExit -Command `"Invoke-RestMethod -Uri '$url' | Invoke-Expression`""
     Start-Process powershell -ArgumentList $cmd -Verb RunAs
     exit
 }
+
+# 2. Настройка окна консоли
 $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# 3. Базовые функции интерфейса
 function Wait-Key {
     while ([System.Console]::KeyAvailable) { $null = [System.Console]::ReadKey($true) }
     $key = [System.Console]::ReadKey($true)
     return $key.KeyChar
 }
+
 function Simulate-Progress ($text) {
     Write-Host $text -NoNewline -ForegroundColor DarkGray
     for ($i=0; $i -lt 3; $i++) {
@@ -20,6 +31,7 @@ function Simulate-Progress ($text) {
     Write-Host " [DONE]" -ForegroundColor DarkGreen
     Start-Sleep -Milliseconds 150
 }
+
 function Print-Header {
     Clear-Host
     Write-Host ""
@@ -34,6 +46,7 @@ function Print-Header {
     Write-Host "    =====================================================" -ForegroundColor DarkGray
     Write-Host ""
 }
+
 function Show-Menu {
     Print-Header
     Write-Host "    [1] Базовый аудит       (UAC, Защитник Windows)" -ForegroundColor White
@@ -46,6 +59,8 @@ function Show-Menu {
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "`n    [>] Ожидание команды [1-5, 0] : " -NoNewline -ForegroundColor Green
 }
+
+# 4. Модули проверок и фиксов
 function Check-BasicSecurity {
     Print-Header
     Write-Host " [+] ЗАПУСК БАЗОВОГО АУДИТА СИСТЕМЫ..." -ForegroundColor Magenta
@@ -205,7 +220,7 @@ function Safe-Optimize {
     Wait-Key | Out-Null
 }
 
-
+# 5. Изолированный главный цикл
 Show-Menu
 while ($true) {$choice = Wait-Key
     switch ($choice) {
@@ -215,6 +230,6 @@ while ($true) {$choice = Wait-Key
         '4' { Repair-SystemFiles; Show-Menu }
         '5' { Safe-Optimize; Show-Menu }
         '0' { Clear-Host; exit }
-        default { }
+        default { } # Игнорируем любые другие клавиши, консоль не моргает
     }
 }
