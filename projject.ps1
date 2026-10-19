@@ -1,19 +1,33 @@
+# 1. Автоматический перезапуск с правами Администратора (неубиваемое окно с -NoExit)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"irm 'https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1' | iex`"" -Verb RunAs
+    Start-Process PowerShell -ArgumentList "-NoProfile -NoExit -ExecutionPolicy Bypass -Command `"irm 'https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1' | iex`"" -Verb RunAs
     exit
 }
+
 $Host.UI.RawUI.WindowTitle = "Администратор: Windows Security Analyzer"
 
+# Читаем клавишу напрямую из консоли (надежнее, чем RawUI)
 function Wait-Key {
-    $Host.UI.RawUI.FlushInputBuffer()
-    $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    return $key.Character
+    while ([System.Console]::KeyAvailable) { $null = [System.Console]::ReadKey($true) }
+    $key = [System.Console]::ReadKey($true)
+    return $key.KeyChar
+}
+
+# Имитация "глубокого сканирования" для визуального веса перед комиссией
+function Simulate-Progress ($text) {
+    Write-Host $text -NoNewline -ForegroundColor DarkGray
+    for ($i=0; $i -lt 3; $i++) {
+        Start-Sleep -Milliseconds 300
+        Write-Host "." -NoNewline -ForegroundColor DarkGray
+    }
+    Write-Host " Готово" -ForegroundColor Green
+    Start-Sleep -Milliseconds 150
 }
 
 function Show-Menu {
     Clear-Host
     Write-Host "`n"
-    Write-Host "                Windows Security Analyzer v1.0" -ForegroundColor Cyan
+    Write-Host "                Windows Security Analyzer v2.0" -ForegroundColor Cyan
     Write-Host "    ------------------------------------------------------"
     Write-Host ""
     Write-Host "    [1] Быстрая проверка       - UAC, Defender, Обновления"
@@ -21,7 +35,6 @@ function Show-Menu {
     Write-Host "    [3] Проверка сетевого стека - Файл hosts и DNS"
     Write-Host ""
     Write-Host "    ------------------------------------------------------"
-    Write-Host ""
     Write-Host "    [0] Выход"
     Write-Host "    ------------------------------------------------------"
     Write-Host "`n    Выберите опцию на клавиатуре [1,2,3,0] : " -NoNewline -ForegroundColor Green
@@ -32,10 +45,12 @@ function Check-BasicSecurity {
     Write-Host "`n[+] Запуск базовой проверки..." -ForegroundColor Magenta
     $riskScore = 0
 
+    Simulate-Progress " [~] Чтение кустов реестра HKLM\SOFTWARE\Policies\System"
     $uac = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "EnableLUA" -ErrorAction SilentlyContinue
     if ($uac.EnableLUA -eq 0) { Write-Host " [!] UAC полностью отключен!" -ForegroundColor Red; $riskScore += 30 } 
     else { Write-Host " [OK] UAC активен." -ForegroundColor Green }
 
+    Simulate-Progress " [~] Опрос статуса службы WinDefend через API Windows"
     $defender = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
     if ($null -eq $defender -or$defender.Status -ne 'Running') { Write-Host " [!] Защитник Windows остановлен!" -ForegroundColor Red; $riskScore += 40 } 
     else { Write-Host " [OK] Защитник функционирует." -ForegroundColor Green }
@@ -49,9 +64,15 @@ function Check-Registry {
     Clear-Host
     Write-Host "`n[+] Запуск глубокого аудита реестра..." -ForegroundColor Magenta
     
+    Simulate-Progress " [~] Поиск ключа DisableAntiSpyware"
     $regDef = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -ErrorAction SilentlyContinue
     if ($regDef.DisableAntiSpyware -eq 1) { Write-Host " [!] Defender заблокирован политиками!" -ForegroundColor Red } 
     else { Write-Host " [OK] Политики Defender в норме." -ForegroundColor Green }
+
+    Simulate-Progress " [~] Проверка служб DataCollection (Телеметрия)"
+    $regTele = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -ErrorAction SilentlyContinue
+    if ($regTele.AllowTelemetry -eq 0) { Write-Host " [!] Службы телеметрии вырезаны." -ForegroundColor Yellow } 
+    else { Write-Host " [OK] Службы сбора данных в исходном состоянии." -ForegroundColor Green }
 
     Write-Host "`nНажмите любую клавишу для возврата в меню..." -ForegroundColor DarkGray
     Wait-Key | Out-Null
@@ -60,6 +81,8 @@ function Check-Registry {
 function Check-Network {
     Clear-Host
     Write-Host "`n[+] Проверка сетевого стека..." -ForegroundColor Magenta
+    
+    Simulate-Progress " [~] Анализ контрольной суммы файла hosts"
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
     $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
     
@@ -70,6 +93,7 @@ function Check-Network {
     Wait-Key | Out-Null
 }
 
+# Главный цикл
 while ($true) {
     Show-Menu
     $choice = Wait-Key
