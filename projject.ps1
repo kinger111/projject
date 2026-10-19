@@ -16,13 +16,13 @@ $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $global:LogPath = "$env:USERPROFILE\Desktop\Windows_Security_Report.txt"
-"==================================================" | Out-File -FilePath $global:LogPath -Force -Encoding UTF8
+"=================================================="| Out-File -FilePath $global:LogPath -Force -Encoding UTF8
 " ОТЧЕТ АУДИТА БЕЗОПАСНОСТИ WINDOWS" | Out-File -FilePath $global:LogPath -Append -Encoding UTF8
-" Дата: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')" | Out-File -FilePath $global:LogPath -Append -Encoding UTF8
-"==================================================" | Out-File -FilePath $global:LogPath -Append -Encoding UTF8
+" Дата: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')"| Out-File -FilePath $global:LogPath -Append -Encoding UTF8
+"=================================================="| Out-File -FilePath $global:LogPath -Append -Encoding UTF8
 
 function Log-Event ($Message) {$timestamp = Get-Date -Format "HH:mm:ss"
-    "[$timestamp] $Message" | Out-File -FilePath $global:LogPath -Append -Encoding UTF8
+    "[$timestamp] $Message"| Out-File -FilePath $global:LogPath -Append -Encoding UTF8
 }
 
 # 3. Базовые функции интерфейса
