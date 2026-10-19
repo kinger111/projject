@@ -17,7 +17,8 @@ $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 
 $global:ReportHtml = @("<html><head><meta charset='utf-8'><title>Отчет аудита ОС</title><style>body{font-family:consolas; background:#1e1e1e; color:#00ff00; padding:20px;}</style></head><body><h2>ОТЧЕТ АУДИТА БЕЗОПАСНОСТИ</h2>")
 
-function Add-Log ($text, $color) {$global:ReportHtml += "<p style='color:$color;'>$text</p>"
+function Add-Log ($text, $color) {
+    $global:ReportHtml += "<p style='color:$color;'>$text</p>"
 }
 
 # 3. Базовые функции интерфейса
@@ -61,7 +62,7 @@ function Show-Menu {
     Write-Host "    [4] Целостность ОС      (SFC сканирование / DISM)" -ForegroundColor White
     Write-Host "    [5] Safe-Boost          (Безопасная оптимизация и очистка)" -ForegroundColor Cyan
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "    [0] Завершить сеанс и сохранить HTML-отчет" -ForegroundColor DarkGray
+    Write-Host "    [0] Завершить сеанс и открыть отчет" -ForegroundColor DarkGray
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "`n    [>] Ожидание команды [1-5, 0] : " -NoNewline -ForegroundColor Green
 }
@@ -95,7 +96,7 @@ function Check-BasicSecurity {
     Write-Host ""
     Simulate-Progress " [~] Опрос статуса службы WinDefend через API Windows"
     $defender = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
-    if ($null -eq $defender -or $defender.Status -ne 'Running') { 
+    if ($null -eq $defender -or$defender.Status -ne 'Running') { 
         Write-Host " [!] Защитник Windows остановлен (AMSI отключен)!" -ForegroundColor Red
         Add-Log "[УГРОЗА] Служба WinDefend остановлена." "#ff0000"
         Write-Host "     Решение: Запустить службу антивирусной защиты." -ForegroundColor DarkYellow
@@ -171,7 +172,7 @@ function Check-Network {
     
     Simulate-Progress " [~] Проверка контрольной суммы файла hosts"
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
-    $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
+    $hostsContent = Get-Content$hostsPath -ErrorAction SilentlyContinue
     
     if ($hostsContent.Length -gt 25) { 
         Write-Host " [!] Файл hosts модифицирован! Возможен угон трафика (DNS Hijacking)." -ForegroundColor Red
@@ -180,7 +181,7 @@ function Check-Network {
         $ans = Read-Host "     > Выполнить сброс? (Y/N)"
         if ($ans -match '^[YyДд]') {
             $defaultHosts = "# Copyright (c) 1993-2009 Microsoft Corp.`r`n# 127.0.0.1 localhost`r`n# ::1 localhost"
-            Set-Content -Path $hostsPath -Value $defaultHosts -Force
+            Set-Content -Path $hostsPath -Value$defaultHosts -Force
             Write-Host "     [OK] Файл hosts успешно очищен." -ForegroundColor Green
             Add-Log "[ИСПРАВЛЕНО] Файл hosts сброшен до оригинала." "#00ff00"
         }
@@ -242,7 +243,7 @@ function Safe-Optimize {
 
     Write-Host ""
     Simulate-Progress " [~] Отключение режима гибернации (Освобождение SSD)"
-    powercfg -h off -ErrorAction SilentlyContinue
+    powercfg.exe /hibernate off *>&1 | Out-Null
     Write-Host "     [OK] Файл hiberfil.sys удален. Ресурс SSD разгружен." -ForegroundColor Green
     Add-Log "[ИНФО] Гибернация отключена, освобождено место на SSD." "#00ffff"
 
@@ -266,7 +267,8 @@ function Safe-Optimize {
 
 # 5. Изолированный главный цикл
 Show-Menu
-while ($true) {$choice = Wait-Key
+while ($true) {
+    $choice = Wait-Key
     switch ($choice) {
         '1' { Check-BasicSecurity; Show-Menu }
         '2' { Check-Registry; Show-Menu }
@@ -276,13 +278,17 @@ while ($true) {$choice = Wait-Key
         '0' { 
             Clear-Host
             $global:ReportHtml += "</body></html>"
-            # Определяем системный путь к Рабочему столу (работает и с OneDrive)
-            $desktopPath = [Environment]::GetFolderPath("Desktop")
-            $reportPath = Join-Path -Path$desktopPath -ChildPath "Security_Audit_Report.html"
+            # Сохраняем отчет прямо в корень диска C:\
+            $reportPath = "C:\Security_Audit_Report.html"
+            Set-Content -Path $reportPath -Value $global:ReportHtml -Encoding UTF8 -Force
             
-            Set-Content -Path $reportPath -Value$global:ReportHtml -Encoding UTF8
             Write-Host "`n[+] Сеанс завершен." -ForegroundColor Cyan
-            Write-Host "[!] Отчет сохранен: $reportPath`n" -ForegroundColor Green
+            Write-Host "[!] Отчет сохранен по пути: $reportPath" -ForegroundColor Green
+            Write-Host "[~] Открываю отчет в браузере..." -ForegroundColor DarkGray
+            
+            # Автоматически открываем файл в браузере
+            Start-Process $reportPath
+            Start-Sleep -Seconds 2
             exit 
         }
         default { } 
