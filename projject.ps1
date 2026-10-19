@@ -49,6 +49,7 @@ function Print-Header {
     Write-Host "    =====================================================" -ForegroundColor DarkGray
     Write-Host "     S E C U R I T Y   A N A L Y Z E R   &   F I X E R   " -ForegroundColor Yellow
     Write-Host "    =====================================================" -ForegroundColor DarkGray
+    Write-Host "                                         build by meraz  " -ForegroundColor DarkMagenta
     Write-Host ""
 }
 
@@ -60,7 +61,7 @@ function Show-Menu {
     Write-Host "    [4] Целостность ОС      (SFC сканирование / DISM)" -ForegroundColor White
     Write-Host "    [5] Safe-Boost          (Безопасная оптимизация и очистка)" -ForegroundColor Cyan
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "    [0] Завершить сеанс и сохранить отчет" -ForegroundColor DarkGray
+    Write-Host "    [0] Завершить сеанс и сохранить HTML-отчет" -ForegroundColor DarkGray
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "`n    [>] Ожидание команды [1-5, 0] : " -NoNewline -ForegroundColor Green
 }
@@ -256,7 +257,7 @@ function Safe-Optimize {
     Simulate-Progress " [~] Активация профиля 'Высокая производительность'"
     powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c | Out-Null
     Write-Host "     [OK] Аппаратные лимиты энергопотребления сняты." -ForegroundColor Green
-    Add-Log "[ИНФО] Активирована схема управления питанием 'Высокая производительность'." "#00ffff"
+    Add-Log "[ИНФО] Активирована схема 'Высокая производительность'." "#00ffff"
 
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "`n [Нажмите любую клавишу для возврата в меню]" -ForegroundColor DarkGray
@@ -275,10 +276,13 @@ while ($true) {$choice = Wait-Key
         '0' { 
             Clear-Host
             $global:ReportHtml += "</body></html>"
-            $reportPath = "$env:USERPROFILE\Desktop\Security_Audit_Report.html"
+            # Определяем системный путь к Рабочему столу (работает и с OneDrive)
+            $desktopPath = [Environment]::GetFolderPath("Desktop")
+            $reportPath = Join-Path -Path$desktopPath -ChildPath "Security_Audit_Report.html"
+            
             Set-Content -Path $reportPath -Value$global:ReportHtml -Encoding UTF8
             Write-Host "`n[+] Сеанс завершен." -ForegroundColor Cyan
-            Write-Host "[!] Отчет в формате HTML сохранен на Рабочем столе: $reportPath`n" -ForegroundColor Green
+            Write-Host "[!] Отчет сохранен: $reportPath`n" -ForegroundColor Green
             exit 
         }
         default { } 
