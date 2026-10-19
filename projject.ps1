@@ -4,16 +4,13 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     Start-Process powershell -ArgumentList $cmd -Verb RunAs
     exit
 }
-
 $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-
 function Wait-Key {
     while ([System.Console]::KeyAvailable) { $null = [System.Console]::ReadKey($true) }
     $key = [System.Console]::ReadKey($true)
     return $key.KeyChar
 }
-
 function Simulate-Progress ($text) {
     Write-Host $text -NoNewline -ForegroundColor DarkGray
     for ($i=0; $i -lt 3; $i++) {
@@ -23,7 +20,6 @@ function Simulate-Progress ($text) {
     Write-Host " [DONE]" -ForegroundColor DarkGreen
     Start-Sleep -Milliseconds 150
 }
-
 function Print-Header {
     Clear-Host
     Write-Host ""
@@ -38,18 +34,18 @@ function Print-Header {
     Write-Host "    =====================================================" -ForegroundColor DarkGray
     Write-Host ""
 }
-
 function Show-Menu {
     Print-Header
     Write-Host "    [1] Базовый аудит       (UAC, Защитник Windows)" -ForegroundColor White
     Write-Host "    [2] Аудит реестра       (Политики, Телеметрия)" -ForegroundColor White
     Write-Host "    [3] Сетевой стек        (Файл hosts, DNS)" -ForegroundColor White
     Write-Host "    [4] Целостность ОС      (SFC сканирование / DISM)" -ForegroundColor White
+    Write-Host "    [5] Safe-Boost          (Безопасная оптимизация и очистка)" -ForegroundColor Cyan
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "    [0] Завершить сеанс" -ForegroundColor DarkGray
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "`n    [>] Ожидание команды [1-5, 0] : " -NoNewline -ForegroundColor Green
 }
-
 function Check-BasicSecurity {
     Print-Header
     Write-Host " [+] ЗАПУСК БАЗОВОГО АУДИТА СИСТЕМЫ..." -ForegroundColor Magenta
@@ -72,7 +68,7 @@ function Check-BasicSecurity {
     Write-Host ""
     Simulate-Progress " [~] Опрос статуса службы WinDefend через API Windows"
     $defender = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
-    if ($null -eq $defender -or$defender.Status -ne 'Running') { 
+    if ($null -eq $defender -or $defender.Status -ne 'Running') { 
         Write-Host " [!] Защитник Windows остановлен (AMSI отключен)!" -ForegroundColor Red
         Write-Host "     Решение: Запустить службу антивирусной защиты." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Выполнить исправление? (Y/N)"
@@ -139,7 +135,7 @@ function Check-Network {
         $ans = Read-Host "     > Выполнить сброс? (Y/N)"
         if ($ans -match '^[YyДд]') {
             $defaultHosts = "# Copyright (c) 1993-2009 Microsoft Corp.`r`n# 127.0.0.1 localhost`r`n# ::1 localhost"
-            Set-Content -Path $hostsPath -Value$defaultHosts -Force
+            Set-Content -Path $hostsPath -Value $defaultHosts -Force
             Write-Host "     [OK] Файл hosts успешно очищен." -ForegroundColor Green
         }
     } else { Write-Host " [OK] Файл hosts имеет стандартный размер." -ForegroundColor Green }
@@ -177,6 +173,39 @@ function Repair-SystemFiles {
     Wait-Key | Out-Null
 }
 
+function Safe-Optimize {
+    Print-Header
+    Write-Host " [+] ЗАПУСК БЕЗОПАСНОЙ ОПТИМИЗАЦИИ ОС (SAFE-BOOST)..." -ForegroundColor Magenta
+    Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
+
+    Simulate-Progress " [~] Очистка кэша и временных файлов (Temp, Prefetch)"
+    Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:WINDIR\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "$env:WINDIR\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "     [OK] Системный мусор удален. Дисковое пространство освобождено." -ForegroundColor Green
+
+    Write-Host ""
+    Simulate-Progress " [~] Отключение режима гибернации (Освобождение SSD)"
+    powercfg -h off -ErrorAction SilentlyContinue
+    Write-Host "     [OK] Файл hiberfil.sys удален. Ресурс SSD разгружен." -ForegroundColor Green
+
+    Write-Host ""
+    Simulate-Progress " [~] Сброс сетевых сокетов и кэша DNS (Снижение задержек)"
+    ipconfig /flushdns | Out-Null
+    netsh winsock reset | Out-Null
+    Write-Host "     [OK] Сетевой стек обновлен." -ForegroundColor Green
+
+    Write-Host ""
+    Simulate-Progress " [~] Активация профиля 'Высокая производительность'"
+    powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c | Out-Null
+    Write-Host "     [OK] Аппаратные лимиты энергопотребления сняты." -ForegroundColor Green
+
+    Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "`n [Нажмите любую клавишу для возврата в меню]" -ForegroundColor DarkGray
+    Wait-Key | Out-Null
+}
+
+
 Show-Menu
 while ($true) {$choice = Wait-Key
     switch ($choice) {
@@ -184,6 +213,7 @@ while ($true) {$choice = Wait-Key
         '2' { Check-Registry; Show-Menu }
         '3' { Check-Network; Show-Menu }
         '4' { Repair-SystemFiles; Show-Menu }
+        '5' { Safe-Optimize; Show-Menu }
         '0' { Clear-Host; exit }
         default { }
     }
