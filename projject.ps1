@@ -1,9 +1,3 @@
-# ============================================================================
-# Скрипт-анализатор угроз и уязвимостей ОС Windows (Интерактивный CLI)
-# Автор: Сарим | КарТУ им. А.Сагинова
-# ============================================================================
-
-# 1. Железобетонный перезапуск с правами Администратора
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $url = "https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1"
     $cmd = "-NoProfile -ExecutionPolicy Bypass -NoExit -Command `"Invoke-RestMethod -Uri '$url' | Invoke-Expression`""
@@ -11,7 +5,6 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-# 2. Настройка окна консоли
 $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -21,7 +14,6 @@ function Add-Log ($text, $color) {
     $global:ReportHtml += "<p style='color:$color;'>$text</p>"
 }
 
-# 3. Базовые функции интерфейса
 function Wait-Key {
     while ([System.Console]::KeyAvailable) { $null = [System.Console]::ReadKey($true) }
     $key = [System.Console]::ReadKey($true)
@@ -67,7 +59,6 @@ function Show-Menu {
     Write-Host "`n    [>] Ожидание команды [1-5, 0] : " -NoNewline -ForegroundColor Green
 }
 
-# 4. Модули проверок и фиксов
 function Check-BasicSecurity {
     Print-Header
     Write-Host " [+] ЗАПУСК БАЗОВОГО АУДИТА СИСТЕМЫ..." -ForegroundColor Magenta
@@ -172,7 +163,7 @@ function Check-Network {
     
     Simulate-Progress " [~] Проверка контрольной суммы файла hosts"
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
-    $hostsContent = Get-Content$hostsPath -ErrorAction SilentlyContinue
+    $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
     
     if ($hostsContent.Length -gt 25) { 
         Write-Host " [!] Файл hosts модифицирован! Возможен угон трафика (DNS Hijacking)." -ForegroundColor Red
@@ -265,7 +256,6 @@ function Safe-Optimize {
     Wait-Key | Out-Null
 }
 
-# 5. Изолированный главный цикл
 Show-Menu
 while ($true) {
     $choice = Wait-Key
