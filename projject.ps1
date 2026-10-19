@@ -1,9 +1,3 @@
-# ============================================================================
-# Скрипт-анализатор угроз и уязвимостей ОС Windows (Интерактивный CLI)
-# Автор: Сарим | КарТУ им. А.Сагинова
-# ============================================================================
-
-# 1. Железобетонный перезапуск с правами Администратора
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $url = "https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1"
     $cmd = "-NoProfile -ExecutionPolicy Bypass -NoExit -Command `"Invoke-RestMethod -Uri '$url' | Invoke-Expression`""
@@ -11,11 +5,9 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-# 2. Настройка окна консоли
 $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# 3. Базовые функции интерфейса
 function Wait-Key {
     while ([System.Console]::KeyAvailable) { $null = [System.Console]::ReadKey($true) }
     $key = [System.Console]::ReadKey($true)
@@ -56,10 +48,8 @@ function Show-Menu {
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "    [0] Завершить сеанс" -ForegroundColor DarkGray
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "`n    [>] Ожидание команды [1-4, 0] : " -NoNewline -ForegroundColor Green
 }
 
-# 4. Модули проверок
 function Check-BasicSecurity {
     Print-Header
     Write-Host " [+] ЗАПУСК БАЗОВОГО АУДИТА СИСТЕМЫ..." -ForegroundColor Magenta
@@ -187,7 +177,6 @@ function Repair-SystemFiles {
     Wait-Key | Out-Null
 }
 
-# 5. Изолированный главный цикл
 Show-Menu
 while ($true) {$choice = Wait-Key
     switch ($choice) {
@@ -196,6 +185,6 @@ while ($true) {$choice = Wait-Key
         '3' { Check-Network; Show-Menu }
         '4' { Repair-SystemFiles; Show-Menu }
         '0' { Clear-Host; exit }
-        default { } # Игнорируем любые другие клавиши, консоль не моргает
+        default { }
     }
 }
