@@ -1,13 +1,9 @@
-# Автоматический перезапуск с правами Администратора
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
-
-# Настройка заголовка окна (как в MAS)
 $Host.UI.RawUI.WindowTitle = "Администратор: Windows Security Analyzer"
 
-# Функция для перехвата одного нажатия клавиши (без Enter)
 function Wait-Key {
     $Host.UI.RawUI.FlushInputBuffer()
     $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
@@ -74,7 +70,6 @@ function Check-Network {
     Wait-Key | Out-Null
 }
 
-# Главный цикл
 while ($true) {
     Show-Menu
     $choice = Wait-Key
