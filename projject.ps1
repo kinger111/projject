@@ -1,6 +1,8 @@
-# 1. Автоматический перезапуск с правами Администратора
+# 1. Автоматический перезапуск с правами Администратора (Железобетонный метод)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Start-Process PowerShell -ArgumentList "-NoProfile -NoExit -ExecutionPolicy Bypass -Command `"irm 'https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1' | iex`"" -Verb RunAs
+    $url = "https://raw.githubusercontent.com/kinger111/projject/refs/heads/main/projject.ps1"
+    $cmd = "-NoProfile -ExecutionPolicy Bypass -NoExit -Command `"Invoke-RestMethod -Uri '$url' | Invoke-Expression`""
+    Start-Process powershell -ArgumentList $cmd -Verb RunAs
     exit
 }
 
