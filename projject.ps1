@@ -131,7 +131,7 @@ function Check-Network {
     
     Simulate-Progress " [~] Проверка контрольной суммы файла hosts"
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
-    $hostsContent = Get-Content$hostsPath -ErrorAction SilentlyContinue
+    $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
     
     if ($hostsContent.Length -gt 25) { 
         Write-Host " [!] Файл hosts модифицирован! Возможен угон трафика (DNS Hijacking)." -ForegroundColor Red
