@@ -11,18 +11,13 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-# 2. Настройка окна консоли и Логирования
+# 2. Настройка окна консоли
 $Host.UI.RawUI.WindowTitle = "TERMINAL :: Windows Security Analyzer & Fixer"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$global:LogPath = "$env:USERPROFILE\Desktop\Windows_Security_Report.txt"
-"==================================================" | Out-File -FilePath $global:LogPath -Force -Encoding UTF8
-" ОТЧЕТ АУДИТА БЕЗОПАСНОСТИ WINDOWS" | Out-File -FilePath $global:LogPath -Append -Encoding UTF8
-" Дата: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')" \vert{} Out-File -FilePath $global:LogPath -Append -Encoding UTF8
-"==================================================" | Out-File -FilePath $global:LogPath -Append -Encoding UTF8
+$global:ReportHtml = @("<html><head><meta charset='utf-8'><title>Отчет аудита ОС</title><style>body{font-family:consolas; background:#1e1e1e; color:#00ff00; padding:20px;}</style></head><body><h2>ОТЧЕТ АУДИТА БЕЗОПАСНОСТИ</h2>")
 
-function Log-Event ($Message) {$timestamp = Get-Date -Format "HH:mm:ss"
-    "[$timestamp] $Message" \vert{} Out-File -FilePath $global:LogPath -Append -Encoding UTF8
+function Add-Log ($text, $color) {$global:ReportHtml += "<p style='color:$color;'>$text</p>"
 }
 
 # 3. Базовые функции интерфейса
@@ -65,7 +60,7 @@ function Show-Menu {
     Write-Host "    [4] Целостность ОС      (SFC сканирование / DISM)" -ForegroundColor White
     Write-Host "    [5] Safe-Boost          (Безопасная оптимизация и очистка)" -ForegroundColor Cyan
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "    [0] Завершить сеанс" -ForegroundColor DarkGray
+    Write-Host "    [0] Завершить сеанс и сохранить отчет" -ForegroundColor DarkGray
     Write-Host "    -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "`n    [>] Ожидание команды [1-5, 0] : " -NoNewline -ForegroundColor Green
 }
@@ -75,25 +70,25 @@ function Check-BasicSecurity {
     Print-Header
     Write-Host " [+] ЗАПУСК БАЗОВОГО АУДИТА СИСТЕМЫ..." -ForegroundColor Magenta
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
-    Log-Event "--- Запуск модуля: Базовый аудит ---"
     $riskScore = 0
+    Add-Log "--- БАЗОВЫЙ АУДИТ ---" "#ffffff"
 
     Simulate-Progress " [~] Чтение кустов реестра HKLM\SOFTWARE\Policies\System"
     $uac = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "EnableLUA" -ErrorAction SilentlyContinue
     if ($uac.EnableLUA -eq 0) { 
         Write-Host " [!] UAC полностью отключен (Высокий риск повышения привилегий)!" -ForegroundColor Red
-        Log-Event "[УГРОЗА] Обнаружен отключенный UAC (EnableLUA=0)."
+        Add-Log "[УГРОЗА] Обнаружен отключенный UAC." "#ff0000"
         Write-Host "     Решение: Включить механизм изоляции процессов." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Выполнить исправление? (Y/N)"
         if ($ans -match '^[YyДд]') {
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "EnableLUA" -Value 1 -Force
             Write-Host "     [OK] UAC успешно включен (требуется перезагрузка)." -ForegroundColor Green
-            Log-Event "[ИСПРАВЛЕНО] UAC успешно активирован."
+            Add-Log "[ИСПРАВЛЕНО] UAC успешно активирован." "#00ff00"
         }
         $riskScore += 30 
     } else { 
         Write-Host " [OK] UAC активен." -ForegroundColor Green
-        Log-Event "[НОРМА] UAC функционирует корректно."
+        Add-Log "[НОРМА] UAC функционирует корректно." "#00ff00"
     }
 
     Write-Host ""
@@ -101,23 +96,22 @@ function Check-BasicSecurity {
     $defender = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
     if ($null -eq $defender -or $defender.Status -ne 'Running') { 
         Write-Host " [!] Защитник Windows остановлен (AMSI отключен)!" -ForegroundColor Red
-        Log-Event "[УГРОЗА] Служба WinDefend остановлена."
+        Add-Log "[УГРОЗА] Служба WinDefend остановлена." "#ff0000"
         Write-Host "     Решение: Запустить службу антивирусной защиты." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Выполнить исправление? (Y/N)"
         if ($ans -match '^[YyДд]') {
             Start-Service -Name "WinDefend" -ErrorAction SilentlyContinue
             Write-Host "     [OK] Отправлена команда на запуск службы." -ForegroundColor Green
-            Log-Event "[ИСПРАВЛЕНО] Служба WinDefend принудительно запущена."
+            Add-Log "[ИСПРАВЛЕНО] Служба WinDefend принудительно запущена." "#00ff00"
         }
         $riskScore += 40 
     } else { 
         Write-Host " [OK] Защитник функционирует." -ForegroundColor Green
-        Log-Event "[НОРМА] Защитник Windows активен."
+        Add-Log "[НОРМА] Защитник Windows активен." "#00ff00"
     }
 
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host " Индекс риска: $riskScore" -ForegroundColor Yellow
-    Log-Event "Суммарный индекс риска: $riskScore"
     Write-Host "`n [Нажмите любую клавишу для возврата в меню]" -ForegroundColor DarkGray
     Wait-Key | Out-Null
 }
@@ -126,23 +120,23 @@ function Check-Registry {
     Print-Header
     Write-Host " [+] ЗАПУСК ГЛУБОКОГО АУДИТА РЕЕСТРА..." -ForegroundColor Magenta
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
-    Log-Event "--- Запуск модуля: Аудит реестра ---"
+    Add-Log "<br>--- АУДИТ РЕЕСТРА ---" "#ffffff"
     
     Simulate-Progress " [~] Поиск ключа DisableAntiSpyware (Блокировка антивируса)"
     $regDef = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -ErrorAction SilentlyContinue
     if ($regDef.DisableAntiSpyware -eq 1) { 
         Write-Host " [!] Defender заблокирован политиками реестра!" -ForegroundColor Red 
-        Log-Event "[УГРОЗА] Найдена политика отключения Defender (DisableAntiSpyware=1)."
+        Add-Log "[УГРОЗА] Найдена политика отключения Defender." "#ff0000"
         Write-Host "     Решение: Удалить блокирующее правило из реестра." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Удалить правило? (Y/N)"
         if ($ans -match '^[YyДд]') {
             Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -ErrorAction SilentlyContinue
             Write-Host "     [OK] Блокировка снята." -ForegroundColor Green
-            Log-Event "[ИСПРАВЛЕНО] Блокирующая политика удалена."
+            Add-Log "[ИСПРАВЛЕНО] Блокирующая политика удалена." "#00ff00"
         }
     } else { 
         Write-Host " [OK] Политики Defender не скомпрометированы." -ForegroundColor Green
-        Log-Event "[НОРМА] Политики Defender в исходном состоянии."
+        Add-Log "[НОРМА] Политики Defender в исходном состоянии." "#00ff00"
     }
 
     Write-Host ""
@@ -150,17 +144,17 @@ function Check-Registry {
     $regTele = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -ErrorAction SilentlyContinue
     if ($regTele.AllowTelemetry -eq 0) { 
         Write-Host " [!] Службы телеметрии вырезаны (Возможна блокировка Windows Update)." -ForegroundColor Yellow
-        Log-Event "[ПРЕДУПРЕЖДЕНИЕ] Отключена базовая телеметрия (AllowTelemetry=0)."
+        Add-Log "[ПРЕДУПРЕЖДЕНИЕ] Отключена базовая телеметрия." "#ffff00"
         Write-Host "     Решение: Вернуть базовый уровень сбора данных (Level 1)." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Восстановить? (Y/N)"
         if ($ans -match '^[YyДд]') {
             Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 1 -Force
             Write-Host "     [OK] Базовая телеметрия восстановлена." -ForegroundColor Green
-            Log-Event "[ИСПРАВЛЕНО] Базовая телеметрия восстановлена."
+            Add-Log "[ИСПРАВЛЕНО] Базовая телеметрия восстановлена." "#00ff00"
         }
     } else { 
         Write-Host " [OK] Службы сбора данных в исходном состоянии." -ForegroundColor Green
-        Log-Event "[НОРМА] Службы сбора данных функционируют."
+        Add-Log "[НОРМА] Службы сбора данных функционируют." "#00ff00"
     }
 
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
@@ -172,7 +166,7 @@ function Check-Network {
     Print-Header
     Write-Host " [+] АНАЛИЗ СЕТЕВОГО СТЕКА..." -ForegroundColor Magenta
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
-    Log-Event "--- Запуск модуля: Сетевой стек ---"
+    Add-Log "<br>--- СЕТЕВОЙ СТЕК ---" "#ffffff"
     
     Simulate-Progress " [~] Проверка контрольной суммы файла hosts"
     $hostsPath = "$env:windir\System32\drivers\etc\hosts"
@@ -180,18 +174,18 @@ function Check-Network {
     
     if ($hostsContent.Length -gt 25) { 
         Write-Host " [!] Файл hosts модифицирован! Возможен угон трафика (DNS Hijacking)." -ForegroundColor Red
-        Log-Event "[УГРОЗА] Обнаружена модификация файла hosts."
+        Add-Log "[УГРОЗА] Обнаружена модификация файла hosts." "#ff0000"
         Write-Host "     Решение: Сбросить файл hosts до заводских настроек." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Выполнить сброс? (Y/N)"
         if ($ans -match '^[YyДд]') {
             $defaultHosts = "# Copyright (c) 1993-2009 Microsoft Corp.`r`n# 127.0.0.1 localhost`r`n# ::1 localhost"
             Set-Content -Path $hostsPath -Value $defaultHosts -Force
             Write-Host "     [OK] Файл hosts успешно очищен." -ForegroundColor Green
-            Log-Event "[ИСПРАВЛЕНО] Файл hosts сброшен до оригинала."
+            Add-Log "[ИСПРАВЛЕНО] Файл hosts сброшен до оригинала." "#00ff00"
         }
     } else { 
         Write-Host " [OK] Файл hosts имеет стандартный размер." -ForegroundColor Green
-        Log-Event "[НОРМА] Файл hosts не изменен."
+        Add-Log "[НОРМА] Файл hosts не изменен." "#00ff00"
     }
     
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
@@ -203,27 +197,27 @@ function Repair-SystemFiles {
     Print-Header
     Write-Host " [+] ПРОВЕРКА ЦЕЛОСТНОСТИ ФАЙЛОВОЙ СИСТЕМЫ ОС..." -ForegroundColor Magenta
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
-    Log-Event "--- Запуск модуля: SFC и DISM ---"
+    Add-Log "<br>--- SFC и DISM ---" "#ffffff"
     Write-Host " [~] Инициализация System File Checker (Займет 1-3 минуты)..." -ForegroundColor DarkGray
     
     $sfcOutput = sfc /scannow
     
     if ($sfcOutput -match "не обнаружила" -or $sfcOutput -match "did not find") {
         Write-Host " [OK] Нарушений целостности системных файлов не обнаружено." -ForegroundColor Green
-        Log-Event "[НОРМА] Сканирование SFC не выявило битых файлов."
+        Add-Log "[НОРМА] Сканирование SFC не выявило битых файлов." "#00ff00"
     } elseif ($sfcOutput -match "восстановила" -or $sfcOutput -match "successfully repaired") {
         Write-Host " [OK] Поврежденные файлы успешно найдены и восстановлены!" -ForegroundColor Green
-        Log-Event "[ИСПРАВЛЕНО] SFC восстановил поврежденные компоненты."
+        Add-Log "[ИСПРАВЛЕНО] SFC восстановил поврежденные компоненты." "#00ff00"
     } else {
         Write-Host " [!] Найдена критическая деградация ОС. Требуется восстановление хранилища." -ForegroundColor Red
-        Log-Event "[УГРОЗА] SFC обнаружил неустранимые ошибки файловой системы."
+        Add-Log "[УГРОЗА] SFC обнаружил неустранимые ошибки." "#ff0000"
         Write-Host "     Решение: Выполнить DISM /RestoreHealth." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Запустить восстановление? (Y/N)"
         if ($ans -match '^[YyДд]') {
             Write-Host " [~] Запуск DISM... Загрузка оригинальных файлов с серверов Microsoft..." -ForegroundColor DarkGray
             DISM /Online /Cleanup-Image /RestoreHealth | Out-Null
             Write-Host "     [OK] Хранилище компонентов ОС восстановлено." -ForegroundColor Green
-            Log-Event "[ИСПРАВЛЕНО] Хранилище ОС успешно восстановлено через DISM."
+            Add-Log "[ИСПРАВЛЕНО] Хранилище ОС успешно восстановлено через DISM." "#00ff00"
         }
     }
     
@@ -236,33 +230,33 @@ function Safe-Optimize {
     Print-Header
     Write-Host " [+] ЗАПУСК БЕЗОПАСНОЙ ОПТИМИЗАЦИИ ОС (SAFE-BOOST)..." -ForegroundColor Magenta
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
-    Log-Event "--- Запуск модуля: Safe-Boost ---"
+    Add-Log "<br>--- SAFE-BOOST ОПТИМИЗАЦИЯ ---" "#ffffff"
 
     Simulate-Progress " [~] Очистка кэша и временных файлов (Temp, Prefetch)"
     Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "$env:WINDIR\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "$env:WINDIR\Prefetch\*" -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "     [OK] Системный мусор удален. Дисковое пространство освобождено." -ForegroundColor Green
-    Log-Event "[ИНФО] Очищены папки Temp и Prefetch."
+    Add-Log "[ИНФО] Очищены папки Temp и Prefetch." "#00ffff"
 
     Write-Host ""
     Simulate-Progress " [~] Отключение режима гибернации (Освобождение SSD)"
     powercfg -h off -ErrorAction SilentlyContinue
     Write-Host "     [OK] Файл hiberfil.sys удален. Ресурс SSD разгружен." -ForegroundColor Green
-    Log-Event "[ИНФО] Гибернация отключена, освобождено место на системном диске."
+    Add-Log "[ИНФО] Гибернация отключена, освобождено место на SSD." "#00ffff"
 
     Write-Host ""
     Simulate-Progress " [~] Сброс сетевых сокетов и кэша DNS (Снижение задержек)"
     ipconfig /flushdns | Out-Null
     netsh winsock reset | Out-Null
     Write-Host "     [OK] Сетевой стек обновлен." -ForegroundColor Green
-    Log-Event "[ИНФО] Выполнен сброс DNS и TCP/IP сокетов."
+    Add-Log "[ИНФО] Выполнен сброс DNS и TCP/IP сокетов." "#00ffff"
 
     Write-Host ""
     Simulate-Progress " [~] Активация профиля 'Высокая производительность'"
     powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c | Out-Null
     Write-Host "     [OK] Аппаратные лимиты энергопотребления сняты." -ForegroundColor Green
-    Log-Event "[ИНФО] Активирована схема управления питанием 'Высокая производительность'."
+    Add-Log "[ИНФО] Активирована схема управления питанием 'Высокая производительность'." "#00ffff"
 
     Write-Host " -----------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "`n [Нажмите любую клавишу для возврата в меню]" -ForegroundColor DarkGray
@@ -280,8 +274,11 @@ while ($true) {$choice = Wait-Key
         '5' { Safe-Optimize; Show-Menu }
         '0' { 
             Clear-Host
+            $global:ReportHtml += "</body></html>"
+            $reportPath = "$env:USERPROFILE\Desktop\Security_Audit_Report.html"
+            Set-Content -Path $reportPath -Value$global:ReportHtml -Encoding UTF8
             Write-Host "`n[+] Сеанс завершен." -ForegroundColor Cyan
-            Write-Host "[!] Подробный отчет сохранен на Рабочем столе: $global:LogPath`n" -ForegroundColor Green
+            Write-Host "[!] Отчет в формате HTML сохранен на Рабочем столе: $reportPath`n" -ForegroundColor Green
             exit 
         }
         default { } 
