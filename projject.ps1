@@ -172,7 +172,7 @@ function Check-Network {
         $ans = Read-Host "     > Выполнить сброс? (Y/N)"
         if ($ans -match '^[YyДд]') {
             $defaultHosts = "# Copyright (c) 1993-2009 Microsoft Corp.`r`n# 127.0.0.1 localhost`r`n# ::1 localhost"
-            Set-Content -Path $hostsPath -Value$defaultHosts -Force
+            Set-Content -Path $hostsPath -Value $defaultHosts -Force
             Write-Host "     [OK] Файл hosts успешно очищен." -ForegroundColor Green
             Add-Log "[ИСПРАВЛЕНО] Файл hosts сброшен до оригинала." "#00ff00"
         }
