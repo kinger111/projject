@@ -115,7 +115,7 @@ function Check-Network {
     $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
     
     if ($hostsContent.Length -gt 25) { 
-        Write-Host " [!] Файл hosts модифицирован!" -ForegroundColor Red[cite: 16]
+        Write-Host " [!] Файл hosts модифицирован!" -ForegroundColor Red
         Write-Host "     Решение: Сбросить файл hosts до заводских настроек Microsoft." -ForegroundColor DarkYellow
         $ans = Read-Host "     > Выполнить сброс? (Y/N)"
         if ($ans -match '^[YyДд]') {
