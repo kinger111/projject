@@ -268,7 +268,7 @@ while ($true) {
         '0' { 
             Clear-Host
             $global:ReportHtml += "</body></html>"
-            # Сохраняем отчет прямо в корень диска C:\
+
             $reportPath = "C:\Security_Audit_Report.html"
             Set-Content -Path $reportPath -Value $global:ReportHtml -Encoding UTF8 -Force
             
@@ -276,7 +276,6 @@ while ($true) {
             Write-Host "[!] Отчет сохранен по пути: $reportPath" -ForegroundColor Green
             Write-Host "[~] Открываю отчет в браузере..." -ForegroundColor DarkGray
             
-            # Автоматически открываем файл в браузере
             Start-Process $reportPath
             Start-Sleep -Seconds 2
             exit 
